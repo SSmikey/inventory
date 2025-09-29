@@ -1,0 +1,22 @@
+# .gitignore
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+.env
+*.env
+/staticfiles/
+/media/
+.DS_Store
+.vscode/
+*.log
+*.pot
+*.py[cod]
+*.swp
+*.swo
+.idea/
+*.egg-info/
+/dist/
+/build/
+.venv/
