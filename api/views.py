@@ -8,6 +8,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.db.models import Sum
 from django.utils import timezone
 from datetime import timedelta
+from rest_framework.views import APIView
 
 # -----------------------
 # JWT Login
@@ -92,3 +93,25 @@ class DashboardView(generics.GenericAPIView):
             "total_revenue": total_revenue,
             "chart_data": chart_data[::-1]  # oldest first
         })
+
+class StockSummaryView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        # ดึงสินค้าทั้งหมด
+        products = Product.objects.all()
+        summary = []
+
+        for product in products:
+            # คำนวณจำนวนสินค้าคงเหลือ: sum of IN - sum of OUT
+            stock_in = StockTransaction.objects.filter(product=product, type='IN').aggregate(total=Sum('quantity'))['total'] or 0
+            stock_out = StockTransaction.objects.filter(product=product, type='OUT').aggregate(total=Sum('quantity'))['total'] or 0
+            current_stock = stock_in - stock_out
+
+            summary.append({
+                'product_id': product.id,
+                'product_name': product.name,
+                'quantity': current_stock
+            })
+
+        return Response(summary)
