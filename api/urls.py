@@ -7,14 +7,14 @@ from .views import (
 from rest_framework_simplejwt.views import TokenRefreshView
 
 router = DefaultRouter()
-router.register("users", UserViewSet)          # admin-only
-router.register("products", ProductViewSet)    # CRUD products
-router.register("stock", StockTransactionViewSet)  # CRUD stock transactions
+router.register("users", UserViewSet)
+router.register("products", ProductViewSet)
+router.register("stock", StockTransactionViewSet)
 
 urlpatterns = [
-    path("register/", RegisterView.as_view(), name="register"),  # anyone can register
-    path("token/", CustomTokenObtainPairView.as_view(), name="token_obtain_pair"),  # login
-    path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),       # refresh token
-    path("dashboard/", DashboardView.as_view(), name="dashboard"),  # dashboard stats
-    path("", include(router.urls)),  # router urls for users, products, stock
+    path("register/", RegisterView.as_view(), name="register"),
+    path("token/", CustomTokenObtainPairView.as_view(), name="token_obtain_pair"),
+    path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    path("dashboard/", DashboardView.as_view(), name="dashboard"),
+    path("", include(router.urls)),
 ]

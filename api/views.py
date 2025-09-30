@@ -2,13 +2,12 @@ from rest_framework import viewsets, generics, permissions
 from rest_framework.response import Response
 from django.contrib.auth.models import User
 from .models import Product, StockTransaction
-from .serializers import UserSerializer, ProductSerializer, StockTransactionSerializer
+from .serializers import UserSerializer, ProductSerializer, StockTransactionSerializer, RegisterSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.db.models import Sum
 from django.utils import timezone
 from datetime import timedelta
-from rest_framework.serializers import ModelSerializer
 
 # -----------------------
 # JWT Login
@@ -19,26 +18,17 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 # -----------------------
 # Register API
 # -----------------------
-class RegisterSerializer(ModelSerializer):
-    class Meta:
-        model = User
-        fields = ["username", "password"]
-        extra_kwargs = {"password": {"write_only": True}}
-
-    def create(self, validated_data):
-        user = User.objects.create_user(**validated_data)
-        return user
-
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = RegisterSerializer
-    permission_classes = [permissions.AllowAny]  # ใครก็สามารถสมัครได้
+    permission_classes = [permissions.AllowAny]
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = serializer.save()  # <-- สร้าง user ที่นี่
+        user = serializer.save()  # <<< สร้าง user ตรงนี้
         refresh = RefreshToken.for_user(user)
+
         return Response({
             "user": {"id": user.id, "username": user.username},
             "access": str(refresh.access_token),
@@ -46,7 +36,7 @@ class RegisterView(generics.CreateAPIView):
         })
 
 # -----------------------
-# User View (admin management)
+# User View (admin only)
 # -----------------------
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
