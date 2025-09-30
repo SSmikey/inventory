@@ -12,11 +12,11 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 import os
 from pathlib import Path
-from .config import DATABASE_URL, DJANGO_SECRET, DEBUG
 import dj_database_url
+from dotenv import load_dotenv
 
-
-
+# โหลด .env
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -26,10 +26,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = DJANGO_SECRET
+SECRET_KEY = os.getenv("DJANGO_SECRET", "django-insecure-9_3wzqav6%v+$#4vbv9b*3s*1f4n$^c^f_fytvyl!9i(sl56jg")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = DEBUG
+DEBUG = os.getenv("DEBUG", "False") == "True"
 
 ALLOWED_HOSTS = ['*']
 
@@ -82,9 +82,11 @@ WSGI_APPLICATION = 'inventory.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
+# Database
 DATABASES = {
-    "default": dj_database_url.parse(DATABASE_URL)
+    "default": dj_database_url.parse(os.getenv("DATABASE_URL"))
 }
+
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
