@@ -1,12 +1,23 @@
 from rest_framework import serializers
-from .models import Product, Transaction
+from django.contrib.auth.models import User
+from .models import Product, StockTransaction
 
+# User Serializer
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ["id", "username", "email"]
+
+# Product Serializer
 class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = "__all__"
 
-class TransactionSerializer(serializers.ModelSerializer):
+# StockTransaction Serializer
+class StockTransactionSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source="product.name", read_only=True)
+
     class Meta:
-        model = Transaction
+        model = StockTransaction
         fields = "__all__"

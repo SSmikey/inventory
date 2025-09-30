@@ -1,59 +1,64 @@
-from rest_framework import viewsets, status
-from rest_framework.decorators import api_view
-from rest_framework.permissions import IsAuthenticated
+from rest_framework import viewsets, generics, permissions
+from rest_framework.decorators import action
 from rest_framework.response import Response
-from django.db.models import Sum, F
+from django.contrib.auth.models import User
+from .models import Product, StockTransaction
+from .serializers import UserSerializer, ProductSerializer, StockTransactionSerializer
+from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.db.models import Sum
 from django.utils import timezone
-from django.db.models.functions import TruncDate
-import uuid
+from datetime import timedelta
 
-from .models import Product, Transaction
-from .serializers import ProductSerializer, TransactionSerializer
+# JWT Login
+class CustomTokenObtainPairView(TokenObtainPairView):
+    pass
 
+# User View (admin management)
+class UserViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [permissions.IsAdminUser]
+
+# Product CRUD
 class ProductViewSet(viewsets.ModelViewSet):
-    queryset = Product.objects.all().order_by("-created_at")
+    queryset = Product.objects.all()
     serializer_class = ProductSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated]
 
-class TransactionViewSet(viewsets.ModelViewSet):
-    queryset = Transaction.objects.all().order_by("-created_at")
-    serializer_class = TransactionSerializer
-    permission_classes = [IsAuthenticated]
+# Stock Transaction
+class StockTransactionViewSet(viewsets.ModelViewSet):
+    queryset = StockTransaction.objects.all()
+    serializer_class = StockTransactionSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
-    def create(self, request, *args, **kwargs):
-        data = request.data.copy()
-        data.setdefault("id", str(uuid.uuid4()))
-        serializer = self.get_serializer(data=data)
-        serializer.is_valid(raise_exception=True)
-        tx = serializer.save()
-        prod = tx.product
-        if tx.type == "out":
-            prod.stock = F('stock') - tx.quantity
-        else:
-            prod.stock = F('stock') + tx.quantity
-        prod.save()
-        prod.refresh_from_db()
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+# Dashboard data
+class DashboardView(generics.GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated]
 
-@api_view(["GET"])
-def dashboard_summary(request):
-    total_products = Product.objects.count()
-    total_stock = Product.objects.aggregate(total_stock=Sum("stock"))["total_stock"] or 0
-    sold_qty = Transaction.objects.filter(type="out").aggregate(sold=Sum("quantity"))["sold"] or 0
-    revenue = Transaction.objects.filter(type="out").aggregate(revenue=Sum("total_price"))["revenue"] or 0
+    def get(self, request):
+        total_products = Product.objects.count()
+        total_stock_in = StockTransaction.objects.filter(type='IN').aggregate(total=Sum('quantity'))['total'] or 0
+        total_stock_out = StockTransaction.objects.filter(type='OUT').aggregate(total=Sum('quantity'))['total'] or 0
+        total_revenue = StockTransaction.objects.filter(type='OUT').aggregate(total=Sum('total_price'))['total'] or 0
 
-    qs = (Transaction.objects
-          .filter(created_at__gte=timezone.now() - timezone.timedelta(days=14), type="out")
-          .annotate(day=TruncDate("created_at"))
-          .values("day")
-          .annotate(total_qty=Sum("quantity"), total_revenue=Sum("total_price"))
-          .order_by("day"))
-    daily = [{"day": r["day"], "qty": r["total_qty"], "revenue": float(r["total_revenue"] or 0)} for r in qs]
+        # Last 7 days transaction chart
+        today = timezone.now().date()
+        chart_data = []
+        for i in range(7):
+            day = today - timedelta(days=i)
+            in_count = StockTransaction.objects.filter(type='IN', date__date=day).aggregate(total=Sum('quantity'))['total'] or 0
+            out_count = StockTransaction.objects.filter(type='OUT', date__date=day).aggregate(total=Sum('quantity'))['total'] or 0
+            chart_data.append({
+                "date": str(day),
+                "in": in_count,
+                "out": out_count
+            })
 
-    return Response({
-        "total_products": total_products,
-        "total_stock": total_stock,
-        "sold_qty": sold_qty,
-        "revenue": float(revenue),
-        "daily": daily
-    })
+        return Response({
+            "total_products": total_products,
+            "total_stock_in": total_stock_in,
+            "total_stock_out": total_stock_out,
+            "total_revenue": total_revenue,
+            "chart_data": chart_data[::-1]  # reverse to show oldest first
+        })
