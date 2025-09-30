@@ -27,13 +27,14 @@ class RegisterView(generics.CreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()  # <<< สร้าง user ตรงนี้
-        refresh = RefreshToken.for_user(user)
 
         return Response({
-            "user": {"id": user.id, "username": user.username},
-            "access": str(refresh.access_token),
-            "refresh": str(refresh)
-        })
+            "message": "Register success",
+            "user": {
+                "id": user.id,
+                "username": user.username
+            }
+        }, status=201)
 
 # -----------------------
 # User View (admin only)
