@@ -1,5 +1,4 @@
 from rest_framework import viewsets, generics, permissions
-from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.contrib.auth.models import User
 from .models import Product, StockTransaction
@@ -11,13 +10,11 @@ from django.utils import timezone
 from datetime import timedelta
 from rest_framework.serializers import ModelSerializer
 
-
 # -----------------------
 # JWT Login
 # -----------------------
 class CustomTokenObtainPairView(TokenObtainPairView):
     pass
-
 
 # -----------------------
 # Register API
@@ -32,23 +29,21 @@ class RegisterSerializer(ModelSerializer):
         user = User.objects.create_user(**validated_data)
         return user
 
-
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = RegisterSerializer
     permission_classes = [permissions.AllowAny]  # ใครก็สามารถสมัครได้
 
     def create(self, request, *args, **kwargs):
-        response = super().create(request, *args, **kwargs)
-        user = self.get_serializer().instance
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()  # <-- สร้าง user ที่นี่
         refresh = RefreshToken.for_user(user)
-        response.data = {
+        return Response({
             "user": {"id": user.id, "username": user.username},
             "access": str(refresh.access_token),
             "refresh": str(refresh)
-        }
-        return response
-
+        })
 
 # -----------------------
 # User View (admin management)
@@ -58,7 +53,6 @@ class UserViewSet(viewsets.ModelViewSet):
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAdminUser]
 
-
 # -----------------------
 # Product CRUD
 # -----------------------
@@ -67,7 +61,6 @@ class ProductViewSet(viewsets.ModelViewSet):
     serializer_class = ProductSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-
 # -----------------------
 # Stock Transaction
 # -----------------------
@@ -75,7 +68,6 @@ class StockTransactionViewSet(viewsets.ModelViewSet):
     queryset = StockTransaction.objects.all()
     serializer_class = StockTransactionSerializer
     permission_classes = [permissions.IsAuthenticated]
-
 
 # -----------------------
 # Dashboard data
@@ -107,5 +99,5 @@ class DashboardView(generics.GenericAPIView):
             "total_stock_in": total_stock_in,
             "total_stock_out": total_stock_out,
             "total_revenue": total_revenue,
-            "chart_data": chart_data[::-1]  # reverse to show oldest first
+            "chart_data": chart_data[::-1]  # oldest first
         })
