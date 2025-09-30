@@ -9,30 +9,76 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.db.models import Sum
 from django.utils import timezone
 from datetime import timedelta
+from rest_framework.serializers import ModelSerializer
 
+
+# -----------------------
 # JWT Login
+# -----------------------
 class CustomTokenObtainPairView(TokenObtainPairView):
     pass
 
+
+# -----------------------
+# Register API
+# -----------------------
+class RegisterSerializer(ModelSerializer):
+    class Meta:
+        model = User
+        fields = ["username", "password"]
+        extra_kwargs = {"password": {"write_only": True}}
+
+    def create(self, validated_data):
+        user = User.objects.create_user(**validated_data)
+        return user
+
+
+class RegisterView(generics.CreateAPIView):
+    serializer_class = RegisterSerializer
+    permission_classes = [permissions.AllowAny]  # ใครก็สามารถสมัครได้
+
+    def create(self, request, *args, **kwargs):
+        response = super().create(request, *args, **kwargs)
+        user = self.get_serializer().instance
+        refresh = RefreshToken.for_user(user)
+        response.data = {
+            "user": {"id": user.id, "username": user.username},
+            "access": str(refresh.access_token),
+            "refresh": str(refresh)
+        }
+        return response
+
+
+# -----------------------
 # User View (admin management)
+# -----------------------
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAdminUser]
 
+
+# -----------------------
 # Product CRUD
+# -----------------------
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+
+# -----------------------
 # Stock Transaction
+# -----------------------
 class StockTransactionViewSet(viewsets.ModelViewSet):
     queryset = StockTransaction.objects.all()
     serializer_class = StockTransactionSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+
+# -----------------------
 # Dashboard data
+# -----------------------
 class DashboardView(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
